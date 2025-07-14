@@ -73,6 +73,7 @@ function getUserWarehouse() {
     
     switch ($user['group_role']) {
         case 'Will':
+        case 'WillAQP':
             return 'will';
         case 'Spare Parts':
             return 'spare_parts';
