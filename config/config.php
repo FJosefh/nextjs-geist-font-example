@@ -21,6 +21,7 @@ define('SITE_NAME', 'Sistema de Inventario');
 define('GROUPS', [
     'Administrador' => ['Admin'],
     'Will' => ['Técnico', 'Supervisor', 'Almacenero'],
+    'WillAQP' => ['Técnico', 'Supervisor', 'Almacenero'],
     'Spare Parts' => ['Vendedor'],
     'Global' => ['Motorizado']
 ]);
