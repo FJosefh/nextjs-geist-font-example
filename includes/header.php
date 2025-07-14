@@ -182,7 +182,7 @@ $userWarehouse = getUserWarehouse();
             
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <?php if ($currentUser['group_role'] === 'Administrador'): ?>
+            <?php if ($currentUser['group_role'] === 'Administrador'): ?>
                         <li class="nav-item">
                             <a class="nav-link" href="<?php echo SITE_URL; ?>/admin/dashboard.php">Dashboard</a>
                         </li>
@@ -198,9 +198,9 @@ $userWarehouse = getUserWarehouse();
                         <li class="nav-item">
                             <a class="nav-link" href="<?php echo SITE_URL; ?>/global/search.php">Búsqueda</a>
                         </li>
-                    <?php elseif ($currentUser['group_role'] === 'Will'): ?>
+                    <?php elseif ($currentUser['group_role'] === 'Will' || $currentUser['group_role'] === 'WillAQP'): ?>
                         <li class="nav-item">
-                            <a class="nav-link" href="<?php echo SITE_URL; ?>/will/dashboard.php">Dashboard</a>
+                            <a class="nav-link" href="<?php echo SITE_URL; ?>/will<?php echo $currentUser['group_role'] === 'WillAQP' ? 'Aqp' : ''; ?>/dashboard.php">Dashboard</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="<?php echo SITE_URL; ?>/admin/inventory.php">Inventario</a>
