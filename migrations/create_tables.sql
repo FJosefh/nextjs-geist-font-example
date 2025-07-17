@@ -12,7 +12,7 @@ CREATE TABLE users (
     password VARCHAR(255) NOT NULL,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100),
-    group_role ENUM('Administrador', 'Will', 'Spare Parts', 'Global') NOT NULL,
+    group_role ENUM('Administrador', 'Will', 'WillAQP', 'Spare Parts', 'Global') NOT NULL,
     role_detail VARCHAR(50) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -128,7 +128,7 @@ CREATE TABLE repuesto_requests (
     id INT AUTO_INCREMENT PRIMARY KEY,
     request_number VARCHAR(50) UNIQUE NOT NULL,
     requester_id INT NOT NULL,
-    group_origin ENUM('Will', 'Spare Parts') NOT NULL,
+    group_origin ENUM('Will', 'WillAQP', 'Spare Parts') NOT NULL,
     motive ENUM('Instalación', 'Prueba', 'Falta de Stock') NOT NULL,
     status ENUM('Pendiente', 'Listo para recojo', 'Completada', 'Cancelada') DEFAULT 'Pendiente',
     description TEXT,
@@ -156,7 +156,7 @@ CREATE TABLE warranty_returns (
     return_number VARCHAR(50) UNIQUE NOT NULL,
     product_id INT NOT NULL,
     quantity INT NOT NULL,
-    group_origin ENUM('Spare Parts', 'Will') NOT NULL,
+    group_origin ENUM('Spare Parts', 'Will', 'WillAQP') NOT NULL,
     sales_order_id INT NULL,
     rs_order_id INT NULL,
     reason TEXT,
@@ -172,17 +172,32 @@ CREATE TABLE warranty_returns (
 INSERT INTO warehouses (name, code, description) VALUES
 ('Callao', 'callao', 'Almacén Central'),
 ('Spare Parts', 'spare_parts', 'Almacén de Ventas'),
-('Will', 'will', 'Almacén de Soporte Técnico');
+('Will', 'will', 'Almacén de Soporte Técnico'),
+('WillAQP', 'will_aqp', 'Almacén de Soporte Técnico Arequipa');
 
 -- Insertar usuario administrador por defecto
 INSERT INTO users (username, password, name, group_role, role_detail) VALUES
 ('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administrador', 'Administrador', 'Admin');
 -- Contraseña por defecto: password
 
+-- Insertar técnicos de Will
+INSERT INTO users (username, password, name, group_role, role_detail) VALUES
+('hermes', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Hermes', 'Will', 'Técnico'),
+('gaspar', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Gaspar', 'Will', 'Técnico'),
+('bernie', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Bernie', 'Will', 'Técnico'),
+('josefh', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Josefh', 'Will', 'Técnico');
+
+-- Insertar técnicos de WillAQP
+INSERT INTO users (username, password, name, group_role, role_detail) VALUES
+('anthony', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Anthony', 'WillAQP', 'Técnico'),
+('marcos', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Marcos', 'WillAQP', 'Técnico'),
+('otro', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Otro', 'WillAQP', 'Técnico');
+-- Contraseña por defecto para todos: password
+
 -- Insertar algunos productos de ejemplo
-INSERT INTO products (sku, name, description, price, stock_callao, stock_spare_parts, stock_will) VALUES
-('SKU001', 'Repuesto Motor A1', 'Motor principal para equipos serie A', 150.00, 10, 5, 3),
-('SKU002', 'Filtro de Aire B2', 'Filtro de aire estándar', 25.50, 20, 8, 12),
-('SKU003', 'Sensor de Temperatura C3', 'Sensor digital de temperatura', 75.00, 15, 6, 4),
-('SKU004', 'Cable de Conexión D4', 'Cable de conexión 2 metros', 12.00, 50, 25, 15),
-('SKU005', 'Placa Controladora E5', 'Placa controladora principal', 200.00, 8, 3, 2);
+INSERT INTO products (sku, name, description, price, stock_callao, stock_spare_parts, stock_will, stock_will_aqp) VALUES
+('SKU001', 'Repuesto Motor A1', 'Motor principal para equipos serie A', 150.00, 10, 5, 3, 2),
+('SKU002', 'Filtro de Aire B2', 'Filtro de aire estándar', 25.50, 20, 8, 12, 5),
+('SKU003', 'Sensor de Temperatura C3', 'Sensor digital de temperatura', 75.00, 15, 6, 4, 3),
+('SKU004', 'Cable de Conexión D4', 'Cable de conexión 2 metros', 12.00, 50, 25, 15, 10),
+('SKU005', 'Placa Controladora E5', 'Placa controladora principal', 200.00, 8, 3, 2, 1);
