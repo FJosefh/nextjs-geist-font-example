@@ -17,7 +17,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $newName = trim($_POST['new_name'] ?? '');
     $quantityChange = intval($_POST['quantity_change'] ?? 0);
     $motive = trim($_POST['motive'] ?? '');
-    $warehouse = $_POST['warehouse'] ?? '';
+    $warehouseOrigin = $_POST['warehouse_origin'] ?? '';
+    $warehouseDestination = $_POST['warehouse_destination'] ?? '';
 
     try {
         if (!$productId) {
@@ -43,8 +44,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (empty($motive)) {
                 throw new Exception('Debe especificar un motivo para el cambio de stock.');
             }
-            if (!in_array($warehouse, ['callao', 'spare_parts', 'will'])) {
-                throw new Exception('Almacén inválido.');
+            $validWarehouses = ['callao', 'spare_parts', 'will', 'will_aqp'];
+            if (!in_array($warehouseOrigin, $validWarehouses) && $warehouseOrigin !== '') {
+                throw new Exception('Almacén origen inválido.');
+            }
+            if (!in_array($warehouseDestination, $validWarehouses)) {
+                throw new Exception('Almacén destino inválido.');
             }
 
             // Validar permisos para reducir stock
@@ -52,33 +57,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception('No tiene permiso para reducir stock.');
             }
 
-            // Actualizar stock según almacén
-            $stockField = '';
-            switch ($warehouse) {
+            // Actualizar stock según almacenes
+            $stockFieldOrigin = '';
+            $stockFieldDestination = '';
+
+            switch ($warehouseOrigin) {
                 case 'callao':
-                    $stockField = 'stock_callao';
+                    $stockFieldOrigin = 'stock_callao';
                     break;
                 case 'spare_parts':
-                    $stockField = 'stock_spare_parts';
+                    $stockFieldOrigin = 'stock_spare_parts';
                     break;
                 case 'will':
-                    $stockField = 'stock_will';
+                    $stockFieldOrigin = 'stock_will';
+                    break;
+                case 'will_aqp':
+                    $stockFieldOrigin = 'stock_will_aqp';
                     break;
             }
 
-            $newStock = $product[$stockField] + $quantityChange;
-            if ($newStock < 0) {
-                throw new Exception('Stock insuficiente para esta operación.');
+            switch ($warehouseDestination) {
+                case 'callao':
+                    $stockFieldDestination = 'stock_callao';
+                    break;
+                case 'spare_parts':
+                    $stockFieldDestination = 'stock_spare_parts';
+                    break;
+                case 'will':
+                    $stockFieldDestination = 'stock_will';
+                    break;
+                case 'will_aqp':
+                    $stockFieldDestination = 'stock_will_aqp';
+                    break;
             }
 
-            $stmt = $pdo->prepare("UPDATE products SET $stockField = ?, updated_at = NOW() WHERE id = ?");
-            $stmt->execute([$newStock, $productId]);
+            // Si origen es vacío (solo permitido para Callao entrada)
+            if ($warehouseOrigin === '') {
+                if ($warehouseDestination !== 'callao') {
+                    throw new Exception('Solo Callao puede recibir stock sin almacén origen.');
+                }
+                $newStockDest = $product[$stockFieldDestination] + $quantityChange;
+                if ($newStockDest < 0) {
+                    throw new Exception('Stock insuficiente para esta operación.');
+                }
+                $stmt = $pdo->prepare("UPDATE products SET $stockFieldDestination = ?, updated_at = NOW() WHERE id = ?");
+                $stmt->execute([$newStockDest, $productId]);
+            } else {
+                // Movimiento entre almacenes
+                $newStockOrigin = $product[$stockFieldOrigin] - $quantityChange;
+                $newStockDest = $product[$stockFieldDestination] + $quantityChange;
+                if ($newStockOrigin < 0) {
+                    throw new Exception('Stock insuficiente en almacén origen.');
+                }
+                if ($newStockDest < 0) {
+                    throw new Exception('Stock insuficiente en almacén destino.');
+                }
+                $stmt = $pdo->prepare("UPDATE products SET $stockFieldOrigin = ?, $stockFieldDestination = ?, updated_at = NOW() WHERE id = ?");
+                $stmt->execute([$newStockOrigin, $newStockDest, $productId]);
+            }
 
             // Registrar movimiento
             $userId = $currentUser['id'];
-            $actionType = $quantityChange > 0 ? 'entrada' : 'salida';
+            $actionType = 'traslado';
             $stmt = $pdo->prepare("INSERT INTO inventory_movements (product_id, user_id, action, quantity, warehouse_origin, warehouse_destination, motive, reference_type, reference_id) VALUES (?, ?, ?, ?, ?, ?, ?, 'manual', NULL)");
-            $stmt->execute([$productId, $userId, $actionType, abs($quantityChange), $warehouse, $warehouse, $motive]);
+            $stmt->execute([$productId, $userId, $actionType, abs($quantityChange), $warehouseOrigin, $warehouseDestination, $motive]);
 
             $success = 'Stock actualizado correctamente.';
         }
@@ -120,6 +162,7 @@ $products = $stmt->fetchAll();
                 <th class="<?php echo $userWarehouse === 'callao' ? 'warehouse-highlight' : ''; ?>">Stock Callao</th>
                 <th class="<?php echo $userWarehouse === 'spare_parts' ? 'warehouse-highlight' : ''; ?>">Stock Spare Parts</th>
                 <th class="<?php echo $userWarehouse === 'will' ? 'warehouse-highlight' : ''; ?>">Stock Will</th>
+                <th class="<?php echo $userWarehouse === 'will_aqp' ? 'warehouse-highlight' : ''; ?>">Stock WillAQP</th>
                 <th>Total Usado</th>
                 <th>Técnico Asignado</th>
                 <?php if ($canEdit): ?>
@@ -148,6 +191,7 @@ $products = $stmt->fetchAll();
                 <td class="<?php echo $userWarehouse === 'callao' ? 'warehouse-highlight' : ''; ?>"><?php echo $product['stock_callao']; ?></td>
                 <td class="<?php echo $userWarehouse === 'spare_parts' ? 'warehouse-highlight' : ''; ?>"><?php echo $product['stock_spare_parts']; ?></td>
                 <td class="<?php echo $userWarehouse === 'will' ? 'warehouse-highlight' : ''; ?>"><?php echo $product['stock_will']; ?></td>
+                <td class="<?php echo $userWarehouse === 'will_aqp' ? 'warehouse-highlight' : ''; ?>"><?php echo $product['stock_will_aqp']; ?></td>
                 <td><?php echo $product['total_used']; ?></td>
                 <td>
                     <?php
@@ -166,10 +210,18 @@ $products = $stmt->fetchAll();
                     <form method="POST" class="d-inline" style="display:inline;">
                         <input type="hidden" name="action" value="change_stock">
                         <input type="hidden" name="product_id" value="<?php echo $product['id']; ?>">
-                        <select name="warehouse" class="form-select form-select-sm d-inline-block" style="width: 120px;">
+                        <select name="warehouse_origin" class="form-select form-select-sm d-inline-block" style="width: 120px;">
+                            <option value="" <?php echo $userWarehouse === 'callao' ? 'selected' : ''; ?>>Sin Origen (Solo Callao)</option>
                             <option value="callao" <?php echo $userWarehouse === 'callao' ? 'selected' : ''; ?>>Callao</option>
                             <option value="spare_parts" <?php echo $userWarehouse === 'spare_parts' ? 'selected' : ''; ?>>Spare Parts</option>
                             <option value="will" <?php echo $userWarehouse === 'will' ? 'selected' : ''; ?>>Will</option>
+                            <option value="will_aqp" <?php echo $userWarehouse === 'will_aqp' ? 'selected' : ''; ?>>WillAQP</option>
+                        </select>
+                        <select name="warehouse_destination" class="form-select form-select-sm d-inline-block ms-1" style="width: 120px;">
+                            <option value="callao" <?php echo $userWarehouse === 'callao' ? 'selected' : ''; ?>>Callao</option>
+                            <option value="spare_parts" <?php echo $userWarehouse === 'spare_parts' ? 'selected' : ''; ?>>Spare Parts</option>
+                            <option value="will" <?php echo $userWarehouse === 'will' ? 'selected' : ''; ?>>Will</option>
+                            <option value="will_aqp" <?php echo $userWarehouse === 'will_aqp' ? 'selected' : ''; ?>>WillAQP</option>
                         </select>
                         <input type="number" name="quantity_change" class="form-control form-control-sm d-inline-block ms-1" style="width: 80px;" placeholder="Cantidad" required>
                         <input type="text" name="motive" class="form-control form-control-sm d-inline-block ms-1" style="width: 150px;" placeholder="Motivo" required>
