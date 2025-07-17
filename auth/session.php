@@ -73,8 +73,9 @@ function getUserWarehouse() {
     
     switch ($user['group_role']) {
         case 'Will':
-        case 'WillAQP':
             return 'will';
+        case 'WillAQP':
+            return 'will_aqp';
         case 'Spare Parts':
             return 'spare_parts';
         case 'Administrador':
@@ -91,7 +92,7 @@ function hasPermission($action) {
     $roleDetail = $user['role_detail'];
     
     $permissions = [
-        'view_inventory' => ['Administrador', 'Will', 'Spare Parts', 'Global'],
+        'view_inventory' => ['Administrador', 'Will', 'WillAQP', 'Spare Parts', 'Global'],
         'edit_product_name' => ['Administrador', 'Supervisor', 'Almacenero', 'Vendedor'],
         'increase_stock' => ['Administrador', 'Supervisor', 'Almacenero', 'Vendedor'],
         'reduce_stock' => ['Administrador'],
