@@ -182,7 +182,7 @@ $userWarehouse = getUserWarehouse();
             
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-            <?php if ($currentUser['group_role'] === 'Administrador'): ?>
+                    <?php if ($currentUser['group_role'] === 'Administrador'): ?>
                         <li class="nav-item">
                             <a class="nav-link" href="<?php echo SITE_URL; ?>/admin/dashboard.php">Dashboard</a>
                         </li>
