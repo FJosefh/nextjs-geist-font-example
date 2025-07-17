@@ -191,7 +191,6 @@ $userWarehouse = getUserWarehouse();
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="<?php echo SITE_URL; ?>/admin/orders.php">Órdenes</a>
-                        </li>
                         <li class="nav-item">
                             <a class="nav-link" href="<?php echo SITE_URL; ?>/admin/users.php">Usuarios</a>
                         </li>
@@ -207,7 +206,7 @@ $userWarehouse = getUserWarehouse();
                         </li>
                         <?php if (hasPermission('create_rs')): ?>
                         <li class="nav-item">
-                            <a class="nav-link" href="<?php echo SITE_URL; ?>/will/rs_orders.php">Órdenes RS</a>
+                            <a class="nav-link" href="<?php echo SITE_URL; ?>/will<?php echo $currentUser['group_role'] === 'WillAQP' ? 'Aqp' : ''; ?>/rs_orders.php">Órdenes RS</a>
                         </li>
                         <?php endif; ?>
                         <li class="nav-item">
