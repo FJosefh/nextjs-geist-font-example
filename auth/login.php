@@ -49,9 +49,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'role_detail' => $user['role_detail']
                 ];
                 
+                // Debug info: log session data
+                error_log("User logged in: " . print_r($_SESSION['user'], true));
+                
                 // Registrar el login en los movimientos (opcional)
                 $stmt = $pdo->prepare("INSERT INTO inventory_movements (product_id, user_id, action, quantity, motive, reference_type) VALUES (0, ?, 'entrada', 0, 'Login al sistema', 'manual')");
                 $stmt->execute([$user['id']]);
+                
+                // Debug info: log headers before redirect
+                error_log("Headers before redirect: " . json_encode(headers_list()));
                 
                 // Redirigir según el grupo
                 switch ($user['group_role']) {
@@ -60,6 +66,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         break;
                     case 'Will':
                         header("Location: ../will/dashboard.php");
+                        break;
+                    case 'WillAQP':
+                        header("Location: ../willAqp/dashboard.php");
                         break;
                     case 'Spare Parts':
                         header("Location: ../spareparts/dashboard.php");
