@@ -1,7 +1,7 @@
 <?php
 $pageTitle = "Gestión de Inventario";
 require_once '../includes/header.php';
-checkRole(['Administrador', 'Will', 'Spare Parts']);
+checkRole(['Administrador', 'Will', 'WillAQP', 'Spare Parts']);
 
 $userWarehouse = getUserWarehouse();
 $canEdit = canEditInventory();
@@ -9,6 +9,11 @@ $canReduce = canReduceStock();
 
 $error = '';
 $success = '';
+
+// Obtener parámetros de búsqueda y filtros
+$search = trim($_GET['search'] ?? '');
+$warehouseFilter = $_GET['warehouse_filter'] ?? '';
+$stockFilter = $_GET['stock_filter'] ?? '';
 
 // Manejo de actualización de stock y edición de nombre
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -129,8 +134,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Obtener productos activos
-$stmt = $pdo->query("SELECT * FROM products WHERE active = 1 ORDER BY name ASC");
+// Construir consulta con filtros
+$whereConditions = ['active = 1'];
+$params = [];
+
+if (!empty($search)) {
+    $whereConditions[] = "(name LIKE ? OR sku LIKE ? OR description LIKE ?)";
+    $searchParam = "%$search%";
+    $params[] = $searchParam;
+    $params[] = $searchParam;
+    $params[] = $searchParam;
+}
+
+if (!empty($warehouseFilter)) {
+    switch ($warehouseFilter) {
+        case 'callao':
+            $whereConditions[] = "stock_callao > 0";
+            break;
+        case 'spare_parts':
+            $whereConditions[] = "stock_spare_parts > 0";
+            break;
+        case 'will':
+            $whereConditions[] = "stock_will > 0";
+            break;
+        case 'will_aqp':
+            $whereConditions[] = "stock_will_aqp > 0";
+            break;
+    }
+}
+
+if (!empty($stockFilter)) {
+    switch ($stockFilter) {
+        case 'low_stock':
+            $whereConditions[] = "(stock_callao + stock_spare_parts + stock_will + stock_will_aqp) < 5";
+            break;
+        case 'no_stock':
+            $whereConditions[] = "(stock_callao + stock_spare_parts + stock_will + stock_will_aqp) = 0";
+            break;
+        case 'high_stock':
+            $whereConditions[] = "(stock_callao + stock_spare_parts + stock_will + stock_will_aqp) > 20";
+            break;
+    }
+}
+
+$whereClause = implode(' AND ', $whereConditions);
+$sql = "SELECT * FROM products WHERE $whereClause ORDER BY name ASC";
+
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
 $products = $stmt->fetchAll();
 
 ?>
@@ -151,8 +202,51 @@ $products = $stmt->fetchAll();
 <div class="alert alert-success"><?php echo htmlspecialchars($success); ?></div>
 <?php endif; ?>
 
+<!-- Filtros y búsqueda -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label for="search" class="form-label">Buscar</label>
+                <input type="text" class="form-control" id="search" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Buscar por nombre, SKU o descripción...">
+            </div>
+            <div class="col-md-3">
+                <label for="warehouse_filter" class="form-label">Filtrar por Almacén</label>
+                <select class="form-select" id="warehouse_filter" name="warehouse_filter">
+                    <option value="">Todos los almacenes</option>
+                    <option value="callao" <?php echo $warehouseFilter === 'callao' ? 'selected' : ''; ?>>Callao</option>
+                    <option value="spare_parts" <?php echo $warehouseFilter === 'spare_parts' ? 'selected' : ''; ?>>Spare Parts</option>
+                    <option value="will" <?php echo $warehouseFilter === 'will' ? 'selected' : ''; ?>>Will</option>
+                    <option value="will_aqp" <?php echo $warehouseFilter === 'will_aqp' ? 'selected' : ''; ?>>WillAQP</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="stock_filter" class="form-label">Filtrar por Stock</label>
+                <select class="form-select" id="stock_filter" name="stock_filter">
+                    <option value="">Todos los niveles</option>
+                    <option value="low_stock" <?php echo $stockFilter === 'low_stock' ? 'selected' : ''; ?>>Stock Bajo (< 5)</option>
+                    <option value="no_stock" <?php echo $stockFilter === 'no_stock' ? 'selected' : ''; ?>>Sin Stock</option>
+                    <option value="high_stock" <?php echo $stockFilter === 'high_stock' ? 'selected' : ''; ?>>Stock Alto (> 20)</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">Filtrar</button>
+                </div>
+            </div>
+        </form>
+        <?php if (!empty($search) || !empty($warehouseFilter) || !empty($stockFilter)): ?>
+        <div class="mt-3">
+            <a href="inventory.php" class="btn btn-outline-secondary btn-sm">Limpiar Filtros</a>
+            <span class="text-muted ms-2">Mostrando <?php echo count($products); ?> productos</span>
+        </div>
+        <?php endif; ?>
+    </div>
+</div>
+
 <div class="table-responsive table-container">
-    <table class="table table-striped table-hover align-middle">
+    <table class="table table-striped table-hover align-middle" id="inventoryTable">
         <thead>
             <tr>
                 <th>SKU</th>
@@ -163,6 +257,7 @@ $products = $stmt->fetchAll();
                 <th class="<?php echo $userWarehouse === 'spare_parts' ? 'warehouse-highlight' : ''; ?>">Stock Spare Parts</th>
                 <th class="<?php echo $userWarehouse === 'will' ? 'warehouse-highlight' : ''; ?>">Stock Will</th>
                 <th class="<?php echo $userWarehouse === 'will_aqp' ? 'warehouse-highlight' : ''; ?>">Stock WillAQP</th>
+                <th>Total</th>
                 <th>Total Usado</th>
                 <th>Técnico Asignado</th>
                 <?php if ($canEdit): ?>
@@ -172,8 +267,17 @@ $products = $stmt->fetchAll();
         </thead>
         <tbody>
             <?php foreach ($products as $product): ?>
-            <tr>
-                <td><?php echo htmlspecialchars($product['sku']); ?></td>
+            <?php 
+            $totalStock = $product['stock_callao'] + $product['stock_spare_parts'] + $product['stock_will'] + $product['stock_will_aqp'];
+            $rowClass = '';
+            if ($totalStock == 0) {
+                $rowClass = 'table-danger';
+            } elseif ($totalStock < 5) {
+                $rowClass = 'table-warning';
+            }
+            ?>
+            <tr class="<?php echo $rowClass; ?>">
+                <td><strong><?php echo htmlspecialchars($product['sku']); ?></strong></td>
                 <td>
                     <?php if ($canEdit): ?>
                     <form method="POST" class="d-inline" style="display:inline;">
@@ -192,6 +296,7 @@ $products = $stmt->fetchAll();
                 <td class="<?php echo $userWarehouse === 'spare_parts' ? 'warehouse-highlight' : ''; ?>"><?php echo $product['stock_spare_parts']; ?></td>
                 <td class="<?php echo $userWarehouse === 'will' ? 'warehouse-highlight' : ''; ?>"><?php echo $product['stock_will']; ?></td>
                 <td class="<?php echo $userWarehouse === 'will_aqp' ? 'warehouse-highlight' : ''; ?>"><?php echo $product['stock_will_aqp']; ?></td>
+                <td><strong><?php echo $totalStock; ?></strong></td>
                 <td><?php echo $product['total_used']; ?></td>
                 <td>
                     <?php
@@ -234,5 +339,36 @@ $products = $stmt->fetchAll();
         </tbody>
     </table>
 </div>
+
+<?php if (empty($products)): ?>
+<div class="text-center py-4">
+    <p class="text-muted">No se encontraron productos con los filtros aplicados.</p>
+</div>
+<?php endif; ?>
+
+<script>
+// Búsqueda en tiempo real
+document.getElementById('search').addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    const table = document.getElementById('inventoryTable');
+    const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+    
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const cells = row.getElementsByTagName('td');
+        let found = false;
+        
+        // Buscar en SKU, nombre y descripción
+        for (let j = 0; j < 3; j++) {
+            if (cells[j] && cells[j].textContent.toLowerCase().includes(searchTerm)) {
+                found = true;
+                break;
+            }
+        }
+        
+        row.style.display = found ? '' : 'none';
+    }
+});
+</script>
 
 <?php require_once '../includes/footer.php'; ?>
