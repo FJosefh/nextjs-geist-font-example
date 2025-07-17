@@ -14,7 +14,7 @@ try {
 }
 
 // Configuraciones generales
-define('SITE_URL', 'http://localhost:8000');
+define('SITE_URL', 'http://macbook-pro-2.local/winv3');
 define('SITE_NAME', 'Sistema de Inventario');
 
 // Grupos y roles
