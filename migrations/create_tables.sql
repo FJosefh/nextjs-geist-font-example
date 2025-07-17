@@ -40,6 +40,7 @@ CREATE TABLE products (
     stock_callao INT DEFAULT 0,
     stock_spare_parts INT DEFAULT 0,
     stock_will INT DEFAULT 0,
+    stock_will_aqp INT DEFAULT 0,
     total_used INT DEFAULT 0,
     technician_assigned INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
